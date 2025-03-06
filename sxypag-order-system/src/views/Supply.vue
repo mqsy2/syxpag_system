@@ -1,19 +1,7 @@
-import { supabase } from "../supabase";
-
 <template>
   <div>
-    <h2>Supply Tracking</h2>
-
-    <!-- Input fields for adding a new product -->
-    <div class="input-row">
-      <input type="text" v-model="newProduct.name" placeholder="Product Name">
-      <input type="number" v-model="newProduct.quantity" placeholder="Quantity">
-      <input type="number" v-model="newProduct.price" placeholder="Price">
-      <button @click="addProduct">Add Product</button>
-    </div>
-
-    <!-- Supply Table -->
-    <table>
+    <h2 class="text-center mt-4">Supply Tracking</h2>
+    <table class="table">
       <thead>
         <tr>
           <th>Product</th>
@@ -23,89 +11,70 @@ import { supabase } from "../supabase";
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(product, index) in supply" :key="index">
-          <td>{{ product.name }}</td>
-          <td>{{ product.quantity }}</td>
-          <td>{{ product.price }}</td>
+        <tr v-for="(item, index) in supplyList" :key="item.id">
           <td>
-            <button @click="removeProduct(index)">Remove</button>
+            <input v-model="item.product" class="form-control" />
+          </td>
+          <td>
+            <input v-model.number="item.quantity" type="number" class="form-control" />
+          </td>
+          <td>
+            <input v-model.number="item.price" type="number" step="0.01" class="form-control" />
+          </td>
+          <td>
+            <button @click="updateSupply(item)" class="btn btn-success">Update</button>
+            <button @click="deleteProduct(item.id)" class="btn btn-danger">Delete</button>
           </td>
         </tr>
       </tbody>
     </table>
+    <button @click="addProduct" class="btn btn-primary">Add Product</button>
   </div>
 </template>
 
 <script>
-import { supabase } from "@/supabase"; // Ensure Supabase is correctly imported
+import { ref, onMounted } from "vue";
+import { supabase } from "../supabase";
 
 export default {
-  data() {
-    return {
-      supply: [], // Stores supply data
-      newProduct: { name: "", quantity: 0, price: 0 } // Stores new product details
-    };
-  },
-  methods: {
-    async addProduct() {
-      if (!this.newProduct.name || this.newProduct.quantity <= 0 || this.newProduct.price <= 0) {
-        alert("Please enter valid product details.");
-        return;
-      }
+  setup() {
+    const supplyList = ref([]);
 
-      const { data, error } = await supabase.from("supply").insert([this.newProduct]);
-
-      if (error) {
-        console.error("Error adding product:", error);
-      } else {
-        this.supply.push(this.newProduct);
-        this.newProduct = { name: "", quantity: 0, price: 0 }; // Clear input fields
-      }
-    },
-
-    async removeProduct(index) {
-      const product = this.supply[index];
-
-      const { error } = await supabase.from("supply").delete().match({ name: product.name });
-
-      if (error) {
-        console.error("Error removing product:", error);
-      } else {
-        this.supply.splice(index, 1);
-      }
-    },
-
-    async fetchSupply() {
+    // Fetch data from Supabase
+    const fetchSupply = async () => {
       const { data, error } = await supabase.from("supply").select("*");
+      if (error) console.error("Fetch error:", error);
+      else supplyList.value = data;
+    };
 
-      if (error) {
-        console.error("Error fetching supply:", error);
-      } else {
-        this.supply = data;
-      }
-    }
+    // Add a new product
+    const addProduct = async () => {
+      const newProduct = { product: "", quantity: 0, price: 0 };
+      const { data, error } = await supabase.from("supply").insert([newProduct]);
+      if (error) console.error("Insert error:", error);
+      else supplyList.value.push({ ...newProduct, id: data[0].id });
+    };
+
+    // Update supply item
+    const updateSupply = async (item) => {
+      const { error } = await supabase.from("supply").update({
+        product: item.product,
+        quantity: item.quantity,
+        price: item.price,
+      }).eq("id", item.id);
+      if (error) console.error("Update error:", error);
+    };
+
+    // Delete product
+    const deleteProduct = async (id) => {
+      const { error } = await supabase.from("supply").delete().eq("id", id);
+      if (error) console.error("Delete error:", error);
+      else supplyList.value = supplyList.value.filter(item => item.id !== id);
+    };
+
+    onMounted(fetchSupply);
+
+    return { supplyList, addProduct, updateSupply, deleteProduct };
   },
-  mounted() {
-    this.fetchSupply(); // Load supply data when page loads
-  }
 };
 </script>
-
-<style>
-.input-row {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-input {
-  padding: 5px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-button {
-  padding: 6px 10px;
-  cursor: pointer;
-}
-</style>
