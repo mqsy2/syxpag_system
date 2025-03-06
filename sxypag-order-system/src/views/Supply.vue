@@ -13,111 +13,79 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(item, index) in supplyItems" :key="item.id || index">
+        <tr v-for="(item, index) in supplyItems" :key="item.id">
           <td>
-            <input type="text" v-model="item.product" class="form-control" placeholder="Enter product name" />
+            <input type="text" v-model="item.product" class="form-control" />
           </td>
           <td>
             <input type="number" v-model="item.quantity" class="form-control" min="0" />
           </td>
           <td>
-            <input type="number" v-model="item.price" class="form-control" min="0" step="0.01" placeholder="Enter price" />
+            <input type="number" v-model="item.price" class="form-control" min="0" step="0.01" />
           </td>
           <td>
-            <button class="btn btn-danger me-2" @click="deleteSupply(item.id, index)">Remove</button>
+            <button class="btn btn-danger me-2" @click="removeItem(item.id)">Remove</button>
           </td>
         </tr>
       </tbody>
     </table>
 
     <!-- Buttons -->
-    <button class="btn btn-primary me-2" @click="addRow">Add Row</button>
-    <button class="btn btn-success me-2" @click="saveNewSupply">Save</button>
-    <button class="btn btn-warning" @click="updateSupply">Update</button>
+    <button class="btn btn-primary me-2" @click="addItem">Add Product</button>
+    <button class="btn btn-success" @click="saveSupply">Save</button>
   </div>
 </template>
 
 <script>
+import { ref, onMounted } from "vue";
 import { createClient } from "@supabase/supabase-js";
 
-// Initialize Supabase
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
 export default {
-  data() {
-    return {
-      supplyItems: [],
-    };
-  },
-  async mounted() {
-    await this.fetchSupply();
-  },
-  methods: {
-    async fetchSupply() {
+  setup() {
+    const supplyItems = ref([]);
+
+    // Fetch data from Supabase on load
+    const fetchSupply = async () => {
       const { data, error } = await supabase.from("supply").select("*");
-      if (error) {
-        console.error("Error fetching supply data:", error);
-      } else {
-        this.supplyItems = data;
-      }
-    },
-    addRow() {
-      this.supplyItems.push({ product: "", quantity: 0, price: 0 });
-    },
-    async saveNewSupply() {
-      const newItems = this.supplyItems.filter(item => !item.id && item.product.trim() !== "");
+      if (error) console.error("Error fetching supply:", error);
+      else supplyItems.value = data;
+    };
 
-      if (newItems.length === 0) {
-        alert("No new valid items to save.");
-        return;
-      }
+    const addItem = () => {
+      supplyItems.value.push({ product: "", quantity: 0, price: 0 });
+    };
 
-      const { data, error } = await supabase
-        .from("supply")
-        .insert(newItems)
-        .select("*"); // Ensure new IDs are returned
+    const removeItem = async (id) => {
+      if (!id) return;
+      const { error } = await supabase.from("supply").delete().eq("id", id);
+      if (error) console.error("Error deleting item:", error);
+      else supplyItems.value = supplyItems.value.filter(item => item.id !== id);
+    };
 
-      if (error) {
-        console.error("Error saving supply:", error);
-      } else {
-        alert("New items saved!");
-        await this.fetchSupply(); // Refresh table
-      }
-    },
-    async updateSupply() {
-      for (const item of this.supplyItems) {
+    const saveSupply = async () => {
+      for (const item of supplyItems.value) {
         if (item.id) {
-          const { error } = await supabase
-            .from("supply")
-            .update({ product: item.product, quantity: item.quantity, price: item.price })
-            .eq("id", item.id);
-
-          if (error) {
-            console.error("Error updating supply item:", error);
-          }
+          // Update existing record
+          await supabase.from("supply").update(item).eq("id", item.id);
+        } else {
+          // Insert new record
+          const { data, error } = await supabase.from("supply").insert([item]);
+          if (!error && data) item.id = data[0].id;
         }
       }
-      alert("Supply updated successfully!");
-      await this.fetchSupply();
-    },
-    async deleteSupply(id, index) {
-      if (!id) {
-        // If the row has no ID, it's not in the database yet, just remove it locally
-        this.supplyItems.splice(index, 1);
-        return;
-      }
+      alert("Supply saved successfully!");
+      fetchSupply();
+    };
 
-      const { error } = await supabase.from("supply").delete().eq("id", id);
-      if (error) {
-        console.error("Error deleting supply item:", error);
-      } else {
-        this.supplyItems = this.supplyItems.filter(item => item.id !== id);
-      }
-    },
-  },
+    onMounted(fetchSupply);
+
+    return { supplyItems, addItem, removeItem, saveSupply };
+  }
 };
 </script>
 
