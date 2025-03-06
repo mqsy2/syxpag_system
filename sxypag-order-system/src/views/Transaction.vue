@@ -14,7 +14,15 @@
       <tbody>
         <tr v-for="transaction in transactions" :key="transaction.id">
           <td>{{ transaction.customer_name }}</td>
-          <td>{{ formatOrderItems(transaction.order_items) }}</td>
+          <td>
+            <div v-for="(item, index) in transaction.order_items" :key="index">
+              <p><strong>Product:</strong> {{ item.product }}</p>
+              <p><strong>Quantity:</strong> {{ item.quantity }}</p>
+              <p><strong>Price:</strong> ${{ item.price.toFixed(2) }}</p>
+              <p><strong>Total:</strong> ${{ item.totalPrice.toFixed(2) }}</p>
+              <hr />
+            </div>
+          </td>
           <td>{{ transaction.total_price.toFixed(2) }}</td>
           <td>{{ transaction.status }}</td>
           <td>
@@ -96,11 +104,6 @@ export default {
         // Reload the transactions after deletion
         await this.fetchTransactions();
       }
-    },
-
-    // Format the order items (JSON) for display
-    formatOrderItems(orderItems) {
-      return orderItems.map(item => `${item.quantity} x ${item.product}`).join(", ");
     }
   },
 
@@ -121,5 +124,17 @@ button {
 
 .mt-2 {
   margin-top: 10px;
+}
+
+hr {
+  margin: 5px 0;
+}
+
+p {
+  margin: 5px 0;
+}
+
+strong {
+  font-weight: bold;
 }
 </style>
