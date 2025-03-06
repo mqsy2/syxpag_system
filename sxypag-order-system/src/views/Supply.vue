@@ -1,60 +1,10 @@
-<script>
-import { ref, onMounted } from "vue";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  "https://your-supabase-url.supabase.co",
-  "your-anon-key"
-);
-
-export default {
-  setup() {
-    const supplyList = ref([]);
-    const newProduct = ref({ product: "", quantity: 0, price: 0 });
-
-    const fetchSupply = async () => {
-      const { data, error } = await supabase.from("supply").select("*");
-      if (error) console.error("Fetch error:", error);
-      else supplyList.value = data;
-    };
-
-    const addProduct = async () => {
-      const { error } = await supabase.from("supply").insert([newProduct.value]);
-      if (error) console.error("Insert error:", error);
-      else {
-        fetchSupply();
-        newProduct.value = { product: "", quantity: 0, price: 0 }; // Reset form
-      }
-    };
-
-    const updateProduct = async (id, quantity, price) => {
-      const { error } = await supabase
-        .from("supply")
-        .update({ quantity, price })
-        .eq("id", id);
-      if (error) console.error("Update error:", error);
-      else fetchSupply();
-    };
-
-    const removeProduct = async (id) => {
-      const { error } = await supabase.from("supply").delete().eq("id", id);
-      if (error) console.error("Delete error:", error);
-      else fetchSupply();
-    };
-
-    onMounted(fetchSupply);
-
-    return { supplyList, newProduct, addProduct, updateProduct, removeProduct };
-  },
-};
-</script>
-
 <template>
-  <div>
-    <h2>Supply Tracking</h2>
-    
-    <table>
-      <thead>
+  <div class="container mt-5">
+    <h2 class="text-center">Supply Tracking</h2>
+
+    <!-- Supply Table -->
+    <table class="table table-bordered mt-3">
+      <thead class="table-dark">
         <tr>
           <th>Product</th>
           <th>Quantity</th>
@@ -63,22 +13,115 @@ export default {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="item in supplyList" :key="item.id">
-          <td>{{ item.product }}</td>
-          <td><input type="number" v-model.number="item.quantity" /></td>
-          <td><input type="number" v-model.number="item.price" /></td>
+        <tr v-for="(item, index) in supplyItems" :key="item.id || index">
           <td>
-            <button @click="updateProduct(item.id, item.quantity, item.price)">Update</button>
-            <button @click="removeProduct(item.id)">Remove</button>
+            <input type="text" v-model="item.product" class="form-control" placeholder="Enter product name" />
+          </td>
+          <td>
+            <input type="number" v-model="item.quantity" class="form-control" min="0" />
+          </td>
+          <td>
+            <input type="number" v-model="item.price" class="form-control" min="0" step="0.01" placeholder="Enter price" />
+          </td>
+          <td>
+            <button class="btn btn-danger me-2" @click="deleteSupply(item.id, index)">Remove</button>
           </td>
         </tr>
       </tbody>
     </table>
 
-    <h3>Add New Product</h3>
-    <input type="text" v-model="newProduct.product" placeholder="Product Name" />
-    <input type="number" v-model.number="newProduct.quantity" placeholder="Quantity" />
-    <input type="number" v-model.number="newProduct.price" placeholder="Price" />
-    <button @click="addProduct">Add Product</button>
+    <!-- Buttons -->
+    <button class="btn btn-primary me-2" @click="addRow">Add Row</button>
+    <button class="btn btn-success me-2" @click="saveNewSupply">Save</button>
+    <button class="btn btn-warning" @click="updateSupply">Update</button>
   </div>
 </template>
+
+<script>
+import { createClient } from "@supabase/supabase-js";
+
+// Initialize Supabase
+const supabaseUrl = "https://YOUR_SUPABASE_URL.supabase.co"; // Replace with your Supabase URL
+const supabaseKey = "YOUR_SUPABASE_ANON_KEY"; // Replace with your Supabase Key
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+export default {
+  data() {
+    return {
+      supplyItems: [],
+    };
+  },
+  async mounted() {
+    await this.fetchSupply();
+  },
+  methods: {
+    async fetchSupply() {
+      const { data, error } = await supabase.from("supply").select("*");
+      if (error) {
+        console.error("Error fetching supply data:", error);
+      } else {
+        this.supplyItems = data;
+      }
+    },
+    addRow() {
+      this.supplyItems.push({ product: "", quantity: 0, price: 0 });
+    },
+    async saveNewSupply() {
+      const newItems = this.supplyItems.filter(item => !item.id && item.product.trim() !== "");
+
+      if (newItems.length === 0) {
+        alert("No new valid items to save.");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("supply")
+        .insert(newItems)
+        .select("*"); // Ensure new IDs are returned
+
+      if (error) {
+        console.error("Error saving supply:", error);
+      } else {
+        alert("New items saved!");
+        await this.fetchSupply(); // Refresh table
+      }
+    },
+    async updateSupply() {
+      for (const item of this.supplyItems) {
+        if (item.id) {
+          const { error } = await supabase
+            .from("supply")
+            .update({ product: item.product, quantity: item.quantity, price: item.price })
+            .eq("id", item.id);
+
+          if (error) {
+            console.error("Error updating supply item:", error);
+          }
+        }
+      }
+      alert("Supply updated successfully!");
+      await this.fetchSupply();
+    },
+    async deleteSupply(id, index) {
+      if (!id) {
+        // If the row has no ID, it's not in the database yet, just remove it locally
+        this.supplyItems.splice(index, 1);
+        return;
+      }
+
+      const { error } = await supabase.from("supply").delete().eq("id", id);
+      if (error) {
+        console.error("Error deleting supply item:", error);
+      } else {
+        this.supplyItems = this.supplyItems.filter(item => item.id !== id);
+      }
+    },
+  },
+};
+</script>
+
+<style scoped>
+table {
+  width: 100%;
+}
+</style>
