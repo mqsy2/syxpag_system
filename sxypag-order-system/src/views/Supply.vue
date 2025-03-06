@@ -56,12 +56,14 @@
       },
       async addProduct() {
         const newProduct = { product: "New Product", quantity: 0, price: 0 };
-        const { data, error } = await supabase.from("supply").insert([newProduct]);
-  
+
+        const { data, error } = await supabase.from("supply").insert([newProduct]).select("*");
+
         if (error) {
-          console.error("Error adding product:", error);
+            console.error("Error adding product:", error);
+            alert("Failed to add product. Check the console for errors.");
         } else {
-          this.supplyItems.push(data[0]);
+            this.supplyItems.push(data[0]); // Ensure we get the new product from Supabase
         }
       },
       async removeProduct(id) {
