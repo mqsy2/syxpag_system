@@ -38,7 +38,7 @@
             </button>
             <button
               class="btn btn-danger mt-2"
-              @click="deleteTransaction(transaction.id)"
+              @click="deleteTransaction(transaction)"
             >
               Delete
             </button>
@@ -92,11 +92,39 @@ export default {
     },
 
     // Delete a transaction
-    async deleteTransaction(transactionId) {
+    async deleteTransaction(transaction) {
+      // Check if the transaction status is 'Ongoing' before updating the supply
+      if (transaction.status === "Ongoing") {
+        // Loop through the order items and return quantities to the supply
+        for (let item of transaction.order_items) {
+          const { data: product, error } = await supabase
+            .from("supply")
+            .select("id, quantity")
+            .eq("product", item.product)
+            .single();  // We assume product name is unique in supply table
+          
+          if (error) {
+            console.error("Error fetching product from supply:", error);
+          } else if (product) {
+            const updatedQuantity = product.quantity + item.quantity;
+            // Update the product quantity in the supply table
+            const { error: updateError } = await supabase
+              .from("supply")
+              .update({ quantity: updatedQuantity })
+              .eq("id", product.id);
+
+            if (updateError) {
+              console.error("Error updating product quantity:", updateError);
+            }
+          }
+        }
+      }
+
+      // Delete the transaction
       const { error } = await supabase
         .from("transactions")
         .delete()
-        .eq("id", transactionId);
+        .eq("id", transaction.id);
 
       if (error) {
         console.error("Error deleting transaction:", error);
