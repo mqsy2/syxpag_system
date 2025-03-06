@@ -19,9 +19,6 @@
             <li class="nav-item">
               <router-link to="/supply" class="nav-link">Supply</router-link>
             </li>
-            <li class="nav-item">
-                <router-link to="/pricing" class="nav-link">Pricing</router-link>
-            </li>
           </ul>
         </div>
       </div>
