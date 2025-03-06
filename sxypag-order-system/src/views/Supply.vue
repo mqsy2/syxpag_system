@@ -25,6 +25,7 @@
           </td>
           <td>
             <button class="btn btn-danger me-2" @click="removeItem(item.id)">Remove</button>
+            <button class="btn btn-warning" @click="updateItem(item)">Update</button>
           </td>
         </tr>
       </tbody>
@@ -67,12 +68,16 @@ export default {
       else supplyItems.value = supplyItems.value.filter(item => item.id !== id);
     };
 
+    const updateItem = async (item) => {
+      if (!item.id) return;
+      const { error } = await supabase.from("supply").update(item).eq("id", item.id);
+      if (error) console.error("Error updating item:", error);
+      else alert("Item updated successfully!");
+    };
+
     const saveSupply = async () => {
       for (const item of supplyItems.value) {
-        if (item.id) {
-          // Update existing record
-          await supabase.from("supply").update(item).eq("id", item.id);
-        } else {
+        if (!item.id) {
           // Insert new record
           const { data, error } = await supabase.from("supply").insert([item]);
           if (!error && data) item.id = data[0].id;
@@ -84,7 +89,7 @@ export default {
 
     onMounted(fetchSupply);
 
-    return { supplyItems, addItem, removeItem, saveSupply };
+    return { supplyItems, addItem, removeItem, updateItem, saveSupply };
   }
 };
 </script>
