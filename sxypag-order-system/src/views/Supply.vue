@@ -1,3 +1,5 @@
+import { supabase } from "@/supabase";
+
 <template>
     <div class="container mt-5">
       <h2 class="text-center">Supply Tracking</h2>
@@ -51,8 +53,13 @@
     methods: {
       async fetchSupply() {
         const { data, error } = await supabase.from("supply").select("*");
-        if (error) console.error("Error fetching supply:", error);
-        else this.supplyItems = data;
+
+        if (error) {
+          console.error("Error fetching supply:", error);
+        } else {
+          console.log("Fetched supply:", data);
+          this.supplyItems = data;
+        }
       },
       async addProduct() {
         const newProduct = { product: "New Product", quantity: 0, price: 0 };
